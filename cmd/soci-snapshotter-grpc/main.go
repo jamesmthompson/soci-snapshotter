@@ -324,7 +324,8 @@ func serve(ctx context.Context, rpc *grpc.Server, addr string, rs snapshots.Snap
 }
 
 const (
-	dbMetadataType = "db"
+	dbMetadataType  = "db"
+	memMetadataType = "memory"
 )
 
 func getMetadataStore(ctx context.Context, rootDir string, config config.Config) (metadata.Store, error) {
@@ -347,9 +348,17 @@ func getMetadataStore(ctx context.Context, rootDir string, config config.Config)
 		return func(sr *io.SectionReader, toc ztoc.TOC, opts ...metadata.Option) (metadata.Reader, error) {
 			return metadata.NewReader(db, sr, toc, opts...)
 		}, nil
+	case memMetadataType:
+		log.G(ctx).WithFields(logrus.Fields{
+			"root":       rootDir,
+			"store_type": config.MetadataStore,
+		}).Debug("initializing in-memory metadata store")
+		return func(sr *io.SectionReader, toc ztoc.TOC, opts ...metadata.Option) (metadata.Reader, error) {
+			return metadata.NewMemReader(sr, toc, opts...)
+		}, nil
 	default:
-		return nil, fmt.Errorf("unknown metadata store type: %v; must be %v",
-			config.MetadataStore, dbMetadataType)
+		return nil, fmt.Errorf("unknown metadata store type: %v; must be %v or %v",
+			config.MetadataStore, dbMetadataType, memMetadataType)
 	}
 }
 
